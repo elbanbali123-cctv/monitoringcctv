@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Analitic - Peta CCTV</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<style>
+    #map {
+        width: 100%;
+        height: 90vh;
+        border-radius: 10px;
+    }
+
+    
+</style>
+</head>
+
+<body>
+
+<!-- ===== SIDEBAR (SELALU ADA) ===== -->
+<div class="sidebar">
+    <h2 class="logo">LOGO</h2>
+    <ul>
+        <li class="menu-item" data-page="index">Dashboard</li>
+        <li class="menu-item active" data-page="maps">Analitic</li>
+        <li class="menu-item" data-page="category">Category</li>
+    </ul>
+</div>
+
+<!-- ===== AREA KONTEN ===== -->
+<div class="main">
+    <h1>Peta CCTV</h1>
+    <div id="map"></div>
+</div>
+
+<script src="script.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+// Inisialisasi peta Leaflet
+var map = L.map('map').setView([-8.7481, 115.1674], 12);
+
+// Layer dasar
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+}).addTo(map);
+
+// Contoh marker awal
+L.marker([-8.7481, 115.1674]).addTo(map).bindPopup("Bandara Ngurah Rai");
+</script>
+
+</body>
+</html>

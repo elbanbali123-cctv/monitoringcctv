@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard CCTV Bandara Ngurah Rai</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    background: #e9ecef;
+  }
+  .left-panel {
+    flex: 1.5;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    box-sizing: border-box;
+    background: #f9f9f9;
+    transition: all 0.3s ease;
+  }
+  .left-panel.hidden { display: none; }
+  h2, h3 { margin: 0 0 10px 0; color: #007BFF; }
+  .table-container {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px 5px;
+    text-align: center;
+    font-size: 13px;
+  }
+  th { background: #f2f2f2; }
+  tr:hover { background: #f0f0f0; cursor: pointer; }
+  .up { color: green; font-weight: bold; }
+  .down { color: red; font-weight: bold; }
+  .form-section {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .form-section input, .form-section select {
+    padding: 6px;
+    margin: 4px 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .form-section button {
+    padding: 8px 15px;
+    margin-top: 5px;
+    background: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .form-section button:hover { background: #0056b3; }
+  .delete-btn, .edit-btn {
+    padding: 3px 7px;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .delete-btn { background: red; }
+  .edit-btn { background: orange; }
+  .delete-btn:hover { background: darkred; }
+  .edit-btn:hover { background: darkorange; }
+  .counters { margin: 5px 0; font-weight: bold; }
+  .counter-up { color: green; margin-right: 20px; }
+  .counter-down { color: red; }
+  .right-panel { flex: 2; height: 100%; position: relative; }
+  #map { height: 100%; width: 100%; }
+  #dateTime {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: rgba(255,255,255,0.9);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    z-index: 1000;
+  }
+  #mapLogo {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 250px;
+    z-index: 1002;
+  }
+  #searchBox {
+    position: absolute;
+    top: 50px;
+    right: 15px;
+    padding: 6px 10px;
+    width: 200px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    z-index: 1001;
+  }
+  #tableSearch {
+    padding: 5px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-left: 10px;
+    width: 120px;
+  }
+  #togglePanel {
+    position: absolute;
+    top: 75px;
+    left: 10px;
+    z-index: 1001;
+  }
+  #togglePanel a {
+    display: block;
+    background: #fff;
+    border: 1px solid #ccc;
+    width: 24px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    text-decoration: none;
+    color: #333;
+    font-weight: bold;
+  }
+  #togglePanel a:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+  <div class="left-panel" id="leftPanel">
+    <h2 style="text-align:center;">Daftar CCTV</h2>
+    <div class="counters">
+      UP: <span id="countUp" class="counter-up">0</span>
+      DOWN: <span id="countDown" class="counter-down">0</span>
+      <input type="text" id="tableSearch" placeholder="Cari IP / Nama CCTV">
+    </div>
+
+    <div class="table-container">
+      <table id="cctvTable">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama CCTV</th>
+            <th>IP</th>
+            <th>Status</th>
+            <th>URL</th>
+            <th>Koordinat</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="form-section">
+      <h3>Tambah CCTV Baru</h3>
+      <input type="text" id="cctvName" placeholder="Nama CCTV">
+      <input type="text" id="cctvIP" placeholder="IP CCTV (misal: 10.2.55.203:8080)">
+      <input type="text" id="cctvURL" placeholder="URL CCTV akan terisi otomatis" readonly>
+      <select id="cctvStatus">
+        <option value="UP">UP</option>
+        <option value="DOWN">DOWN</option>
+      </select>
+      <input type="text" id="cctvLat" placeholder="Latitude">
+      <input type="text" id="cctvLng" placeholder="Longitude">
+      <button id="btnTambah">Tambah CCTV</button>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div id="map"></div>
+    <img src="./Data CCTV_files/logoinjourney.png" alt="Logo" id="mapLogo">
+    <div id="togglePanel" class="leaflet-control leaflet-bar">
+      <a href="#" title="Sembunyikan Panel" id="toggleBtn">◀</a>
+    </div>
+    <div id="dateTime"></div>
+    <input type="text" id="searchBox" placeholder="Cari CCTV...">
+  </div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+let map;
+let markers=[];
+let cctvs=JSON.parse(localStorage.getItem("cctvData"))||[
+  {lat:-8.748169,lng:115.167473,title:"CCTV Gerbang Utama",ip:"10.2.55.201:8080",status:"UP",url:"http://10.2.55.201:8080"},
+  {lat:-8.747200,lng:115.169000,title:"CCTV Parkiran",ip:"10.2.55.202:8080",status:"UP",url:"http://10.2.55.202:8080"}
+];
+
+// 🔗 Ketika isi IP, kolom URL otomatis diisi "http://<ip>"
+document.getElementById("cctvIP").addEventListener("input", function(){
+  const ip = this.value.trim();
+  if(ip !== ""){
+    document.getElementById("cctvURL").value = `http://${ip}`;
+  } else {
+    document.getElementById("cctvURL").value = "";
+  }
+});
+
+// Validasi IP:PORT
+function validIPPort(ip){
+  const regex=/^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}(:[0-9]{1,5})?$/;
+  return regex.test(ip);
+}
+
+// Marker icon
+function createMarkerIcon(status){
+  const color=status==="UP"?"green":"red";
+  return L.icon({
+    iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize:[25,41], iconAnchor:[12,41], popupAnchor:[1,-34], shadowSize:[41,41]
+  });
+}
+
+// Inisialisasi peta
+function initMap(){
+  map=L.map('map').setView([-8.748169,115.167473],16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:25}).addTo(map);
+  renderTable(cctvs);
+  map.on("click",e=>{
+    document.getElementById("cctvLat").value=e.latlng.lat.toFixed(6);
+    document.getElementById("cctvLng").value=e.latlng.lng.toFixed(6);
+  });
+}
+
+// Cek status kamera
+function checkCameraStatus(){
+  cctvs.forEach((cctv,index)=>{
+    if(cctv.url){
+      fetch(cctv.url,{method:"HEAD",mode:"no-cors"})
+        .then(()=>{
+          if(cctv.status!=="UP"){
+            cctv.status="UP";
+            localStorage.setItem("cctvData",JSON.stringify(cctvs));
+            renderTable(cctvs);
+          }
+        })
+        .catch(()=>{
+          if(cctv.status!=="DOWN"){
+            cctv.status="DOWN";
+            localStorage.setItem("cctvData",JSON.stringify(cctvs));
+            renderTable(cctvs);
+          }
+        });
+    }
+  });
+}
+setInterval(checkCameraStatus,60000);
+
+// Render tabel
+function renderTable(data){
+  let tbody=document.querySelector("#cctvTable tbody");
+  tbody.innerHTML="";
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  let countUp=0,countDown=0;
+
+  data.forEach((cctv,index)=>{
+    if(cctv.status==="UP")countUp++;else countDown++;
+    let marker=L.marker([cctv.lat,cctv.lng],{icon:createMarkerIcon(cctv.status)}).addTo(map);
+    marker.bindPopup(`<b>${cctv.title}</b><br>IP: ${cctv.ip}<br>Status: ${cctv.status}<br><a href="${cctv.url}" target="_blank">Lihat CCTV</a>`);
+    markers.push(marker);
+
+    let row=document.createElement("tr");
+    row.innerHTML=`
+      <td>${index+1}</td>
+      <td>${cctv.title}</td>
+      <td>${cctv.ip}</td>
+      <td class="${cctv.status==="UP"?"up":"down"}">${cctv.status}</td>
+      <td><a href="${cctv.url}" target="_blank">Link</a></td>
+      <td>${cctv.lat}, ${cctv.lng}</td>
+      <td><button class="edit-btn">Edit</button> <button class="delete-btn">Hapus</button></td>
+    `;
+    
+    // Hapus
+    row.querySelector(".delete-btn").addEventListener("click",()=>{
+      const input=prompt(`Masukkan password untuk hapus "${cctv.title}":`);
+      if(input==="admin123"){
+        cctvs.splice(index,1);
+        localStorage.setItem("cctvData",JSON.stringify(cctvs));
+        renderTable(cctvs);
+      }else if(input!==null){alert("Password salah!");}
+    });
+
+    // Edit
+    row.querySelector(".edit-btn").addEventListener("click",()=>{
+      const input=prompt("Masukkan password untuk edit koordinat:");
+      if(input==="admin123"){
+        let newLat=prompt("Latitude baru:",cctv.lat);
+        let newLng=prompt("Longitude baru:",cctv.lng);
+        if(newLat&&newLng&&!isNaN(newLat)&&!isNaN(newLng)){
+          cctv.lat=parseFloat(newLat);
+          cctv.lng=parseFloat(newLng);
+          localStorage.setItem("cctvData",JSON.stringify(cctvs));
+          renderTable(cctvs);
+        }else{alert("Koordinat tidak valid!");}
+      }else if(input!==null){alert("Password salah!");}
+    });
+
+    row.addEventListener("click",e=>{
+      if(!e.target.classList.contains("delete-btn")&&!e.target.classList.contains("edit-btn")){
+        map.setView([cctv.lat,cctv.lng],18);
+        marker.openPopup();
+      }
+    });
+    tbody.appendChild(row);
+  });
+
+  document.getElementById("countUp").innerText=countUp;
+  document.getElementById("countDown").innerText=countDown;
+  localStorage.setItem("cctvData",JSON.stringify(cctvs));
+}
+
+// Tambah CCTV
+function addCCTV(){
+  let name=document.getElementById("cctvName").value.trim();
+  let ip=document.getElementById("cctvIP").value.trim();
+  let url=document.getElementById("cctvURL").value.trim();
+  let status=document.getElementById("cctvStatus").value;
+  let lat=parseFloat(document.getElementById("cctvLat").value);
+  let lng=parseFloat(document.getElementById("cctvLng").value);
+
+  if(!name||!ip||isNaN(lat)||isNaN(lng)){alert("Mohon isi semua field!");return;}
+  if(!validIPPort(ip)){alert("Format IP atau port tidak valid!");return;}
+  if(cctvs.some(c=>c.ip===ip)){alert("IP sudah digunakan CCTV lain!");return;}
+
+  cctvs.push({lat,lng,title:name,ip,status,url});
+  localStorage.setItem("cctvData",JSON.stringify(cctvs));
+  renderTable(cctvs);
+
+  document.getElementById("cctvName").value="";
+  document.getElementById("cctvIP").value="";
+  document.getElementById("cctvURL").value="";
+  document.getElementById("cctvLat").value="";
+  document.getElementById("cctvLng").value="";
+  alert("✅ CCTV berhasil ditambahkan!");
+}
+// Event tombol
+document.getElementById("btnTambah").addEventListener("click",addCCTV);
+
+document.getElementById("searchBox").addEventListener("input",function(){
+  const keyword=this.value.toLowerCase();
+  const filtered=cctvs.filter(c=>
+    c.title.toLowerCase().includes(keyword)||c.ip.toLowerCase().includes(keyword)
+  );
+  renderTable(filtered);
+});
+
+document.getElementById("tableSearch").addEventListener("input",function(){
+  const keyword=this.value.toLowerCase();
+  const filtered=cctvs.filter(c=>
+    c.title.toLowerCase().includes(keyword)||c.ip.toLowerCase().includes(keyword)
+  );
+  renderTable(filtered);
+});
+
+document.getElementById("toggleBtn").addEventListener("click",function(e){
+  e.preventDefault();
+  const panel=document.getElementById("leftPanel");
+  panel.classList.toggle("hidden");
+  this.innerText=panel.classList.contains("hidden")?"▶":"◀";
+  setTimeout(()=>{map.invalidateSize();},300);
+});
+
+// Jam real-time
+function updateDateTime(){
+  const now=new Date();
+  const options={year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'};
+  document.getElementById('dateTime').innerText=now.toLocaleDateString('id-ID',options).replace(',', '');
+}
+setInterval(updateDateTime,1000);
+updateDateTime();
+initMap();
+checkCameraStatus();
+</script>
+</body>
+</html>

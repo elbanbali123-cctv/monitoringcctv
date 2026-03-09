@@ -1,0 +1,5 @@
+body { font-family: Arial; padding:20px; }
+.summary { display:flex; gap:20px; margin:20px 0; }
+.summary div { padding:10px 20px; background:#eee; }
+.up { background:#4ade80; }
+.down { background:#f87171; }

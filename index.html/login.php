@@ -1,0 +1,2 @@
+$q = $conn->query("SELECT * FROM users 
+WHERE username='$username' AND password='$password'");

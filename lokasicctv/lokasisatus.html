@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Status Kamera</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+.box {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.up {
+  background: #16a34a;
+  padding: 6px 12px;
+  color: white;
+  border-radius: 6px;
+  font-weight: bold;
+}
+.down {
+  background: #dc2626;
+  padding: 6px 12px;
+  color: white;
+  border-radius: 6px;
+  font-weight: bold;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+th, td {
+  border-bottom: 1px solid #ddd;
+  padding: 12px;
+}
+tr:hover {
+  background: #f1f5f9;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+      <h2>MyApp</h2>
+  </div>
+  <ul class="menu">
+      <li class="menu-item active">Dashboard</li>
+      <li class="menu-item">Analytic</li>
+      <li class="menu-item">Category</li>
+  </ul>
+</div>
+
+<div class="main">
+  
+  <div class="header">
+    <h1>Status Kamera</h1>
+  </div>
+
+  <div class="content">
+
+    <div class="box">
+      <h2>Ringkasan</h2>
+      <p>Total Kamera: <b id="totalCam"></b></p>
+      <p>UP: <span class="up" id="countUp"></span></p>
+      <p>DOWN: <span class="down" id="countDown"></span></p>
+    </div>
+
+    <div class="box">
+      <h2>Daftar Kamera</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nama Kamera</th>
+            <th>IP</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tabelKamera"></tbody>
+      </table>
+    </div>
+
+    <div class="box">
+      <h2>Tambah Kamera Baru</h2>
+
+      <input id="nama" placeholder="Nama Kamera" style="padding:8px;width:200px;">
+      <input id="ip" placeholder="IP Address" style="padding:8px;width:200px;">
+      <select id="status" style="padding:8px;">
+        <option value="UP">UP</option>
+        <option value="DOWN">DOWN</option>
+      </select>
+
+      <button onclick="tambahKamera()" style="padding:10px 20px;">Tambah</button>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+
+<script>
+// AMBIL DATA
+let kamera = JSON.parse(localStorage.getItem("kameraData")) || [];
+
+if (kamera.length === 0) {
+  kamera = [
+    { nama: "Cam 1", ip: "192.168.1.10", status: "UP" },
+    { nama: "Cam 2", ip: "192.168.1.11", status: "DOWN" }
+  ];
+  localStorage.setItem("kameraData", JSON.stringify(kamera));
+}
+
+function updateRingkasan() {
+  document.getElementById("totalCam").innerText = kamera.length;
+  document.getElementById("countUp").innerText = kamera.filter(k => k.status === "UP").length;
+  document.getElementById("countDown").innerText = kamera.filter(k => k.status === "DOWN").length;
+}
+
+function tampilkanTabel() {
+  const tabel = document.getElementById("tabelKamera");
+  tabel.innerHTML = "";
+
+  kamera.forEach(k => {
+    tabel.innerHTML += `
+      <tr>
+        <td>${k.nama}</td>
+        <td>${k.ip}</td>
+        <td><span class="${k.status === 'UP' ? 'up' : 'down'}">${k.status}</span></td>
+      </tr>
+    `;
+  });
+}
+
+function tambahKamera() {
+  const nama = document.getElementById("nama").value;
+  const ip = document.getElementById("ip").value;
+  const status = document.getElementById("status").value;
+
+  if (!nama || !ip) return alert("Nama & IP wajib diisi!");
+
+  kamera.push({ nama, ip, status });
+  localStorage.setItem("kameraData", JSON.stringify(kamera));
+
+  tampilkanTabel();
+  updateRingkasan();
+}
+
+tampilkanTabel();
+updateRingkasan();
+</script>
+
+</body>
+</html>

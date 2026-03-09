@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard CCTV</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+<style>
+body { margin:0; font-family:Arial; }
+#header { height:80px; background:#003566; display:flex; align-items:center; justify-content:center; position:fixed; top:0; left:0; right:0; color:white; z-index:50; box-shadow:0 2px 5px rgba(0,0,0,0.3);}
+#toggleSidebar { position:absolute; left:20px; top:50%; transform:translateY(-50%); background:#f7f7f7; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:18px; z-index:60;}
+#datetime { position:absolute; right:30px; text-align:right; font-size:18px; color:#f7f7f7; }
+#mainWrapper { display:flex; flex:1; margin-top:80px; transition: all 0.3s ease; height: calc(100vh - 80px); }
+#sidebar { width:230px; background:#1e293b; color:white; padding:20px; display:flex; flex-direction:column; transition: all 0.3s ease; }
+#content { flex:1; padding:20px; overflow:auto; transition: all 0.3s ease; position:relative; }
+.home-box { background:white; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.12); text-align:center; }
+#map { width:100%; height:60vh; border-radius:10px; transition: all 0.3s ease; }
+#map.fullscreen { width:100vw; height:100vh; border-radius:0; position:fixed; top:0; left:0; z-index:999; }
+#cameraFormBox { background:white; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.15); margin-bottom:20px; }
+#cameraFormBox input, #cameraFormBox select { width:100%; padding:10px; margin-bottom:10px; border-radius:6px; border:1px solid #bbb; }
+#cameraTable { width:100%; border-collapse: collapse; margin-top:10px;}
+#cameraTable th, #cameraTable td { border:1px solid #ccc; padding:6px; text-align:center; font-size:14px; }
+#cameraTable th { background:#003566; color:white; }
+#mapSearchBox { position:absolute; right:30px; top:130px; width:260px; background:white; padding:15px; border-radius:10px; box-shadow:-4px 4px 10px rgba(0,0,0,0.25); z-index:1000; }
+#mapSearchBox input { width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; }
+#mapSearchBox button { margin-top:10px; width:100%; padding:10px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; }
+.menu-item { padding:12px; cursor:pointer; border-radius:6px; margin-bottom:10px; font-size:17px; }
+.menu-item:hover, .active { background:#334155; }
+button.actionBtn { padding:4px 8px; border:none; border-radius:4px; cursor:pointer; margin:2px; font-size:12px; }
+button.editBtn { background:#facc15; color:#000; }
+button.deleteBtn { background:#dc2626; color:#fff; }
+
+/* CSS untuk blinking pin merah */
+.blinking-pin {
+    width: 40px;
+    height: 40px;
+    background:red;
+    border-radius:50%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:white;
+    font-size:20px;
+    border:2px solid white;
+    animation: blink 1s infinite;
+}
+@keyframes blink {
+    0%,50%,100% { opacity:1; }
+    25%,75% { opacity:0; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+    <button id="toggleSidebar">☰ ←</button>
+    <img src="logo.png" alt="LOGO" style="height:55px; margin:0 auto;">
+    <div id="datetime">
+        <div id="currentDate"></div>
+        <div id="currentTime" style="font-size:22px; font-weight:bold;"></div>
+    </div>
+</div>
+
+<div id="mainWrapper">
+    <div id="sidebar">
+        <h2>MENU</h2>
+        <div class="menu-item active" onclick="showHome()">🏠 Home</div>
+        <div class="menu-item" onclick="showMap()">🌍 Maps</div>
+        <div class="menu-item" onclick="showAddData()">➕ Add Data</div>
+    </div>
+    <div id="content">
+        <!-- HOME PAGE -->
+        <div id="homePage">
+            <h2>Dashboard CCTV</h2>
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                <div class="home-box" style="flex:1; min-width:200px;">
+                    <h3>TOTAL CAMERA</h3>
+                    <div style="font-size:35px; font-weight:bold;" id="totalCount">0</div>
+                </div>
+                <div class="home-box" style="flex:1; min-width:200px; border-top:6px solid #16a34a;">
+                    <h3 style="color:#16a34a;">UP</h3>
+                    <div style="font-size:35px; font-weight:bold; color:#16a34a;" id="upCount">0</div>
+                </div>
+                <div class="home-box" style="flex:1; min-width:200px; border-top:6px solid #dc2626;">
+                    <h3 style="color:#dc2626;">DOWN</h3>
+                    <div style="font-size:35px; font-weight:bold; color:#dc2626;" id="downCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAP PAGE -->
+        <div id="mapPage">
+            <h2>Peta Lokasi CCTV</h2>
+            <div id="map"></div>
+            <div id="mapSearchBox">
+                <h3 style="margin-top:0;">🔍 Cari Kamera</h3>
+                <input id="mapSearch" type="text" placeholder="Cari nama/IP kamera...">
+                <button id="btnClearSearch">Reset</button>
+            </div>
+        </div>
+
+        <!-- ADD DATA PAGE -->
+        <div id="addDataPage" style="display:none;">
+            <h2>Tambah Kamera</h2>
+            <div id="cameraFormBox">
+                <input id="camName" type="text" placeholder="Nama kamera">
+                <input id="camIP" type="text" placeholder="IP kamera">
+                <select id="camStatus">
+                    <option value="UP">UP</option>
+                    <option value="DOWN">DOWN</option>
+                </select>
+                <input id="camURL" type="text" placeholder="URL kamera" readonly>
+                <input id="camLat" type="text" placeholder="Latitude">
+                <input id="camLng" type="text" placeholder="Longitude">
+                <button onclick="saveCamera()">Simpan Kamera</button>
+            </div>
+            <input id="searchAddData" type="text" placeholder="Cari kamera..." style="width:100%; padding:8px; margin-bottom:10px; border-radius:6px; border:1px solid #ccc;">
+            <table id="cameraTable">
+                <thead>
+                    <tr><th>Nama</th><th>IP</th><th>Status</th><th>URL</th><th>Lat</th><th>Lng</th><th>Aksi</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script>
+// DATE & TIME
+function updateClock(){
+    const now=new Date();
+    document.getElementById("currentDate").textContent = now.toLocaleDateString("id-ID", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+    document.getElementById("currentTime").textContent = now.toLocaleTimeString("id-ID");
+}
+setInterval(updateClock,1000); updateClock();
+
+// CCTV DATA
+let cctvs = JSON.parse(localStorage.getItem("cctvData")) || [];
+function saveStore(){ localStorage.setItem("cctvData", JSON.stringify(cctvs)); }
+function updateCount(){
+    document.getElementById("totalCount").textContent = cctvs.length;
+    document.getElementById("upCount").textContent = cctvs.filter(x=>x.status==="UP").length;
+    document.getElementById("downCount").textContent = cctvs.filter(x=>x.status==="DOWN").length;
+}
+updateCount();
+
+// MAP
+let map = L.map('map', {
+    center: [-8.7485,115.1675],
+    zoom: 16,
+    maxZoom: 40,
+    minZoom: 2
+});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 40,
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let markersCluster = L.markerClusterGroup();
+map.addLayer(markersCluster);
+
+// LOAD MARKERS
+function loadMapMarkers(filteredCctvs=null){
+    markersCluster.clearLayers();
+    let list = filteredCctvs || cctvs;
+
+    list.forEach(cam=>{
+        if(cam.lat && cam.lng){
+            let icon;
+            if(cam.status==='DOWN'){
+                icon = L.divIcon({html:`<div class="blinking-pin">📍</div>`, className:'', iconSize:[40,40], iconAnchor:[20,40], popupAnchor:[0,-40]});
+            } else {
+                icon = L.divIcon({html:`<div style="color:white;background:green;border-radius:50%;width:40px;height:40px;display:flex;justify-content:center;align-items:center;font-size:20px;border:2px solid white;">📍</div>`, className:'', iconSize:[40,40], iconAnchor:[20,40], popupAnchor:[0,-40]});
+            }
+            let marker = L.marker([cam.lat,cam.lng], {icon:icon})
+                .bindPopup(`<b>${cam.name}</b><br>${cam.ip}<br>Status: ${cam.status}<br>
+                            <a href="${cam.url}" target="_blank" style="color:${cam.status==='UP'?'green':'red'};">${cam.url}</a>`);
+            markersCluster.addLayer(marker);
+        }
+    });
+    renderTable();
+}
+
+// SAVE CAMERA
+document.getElementById("camIP").addEventListener("input", ()=>{
+    let ip = document.getElementById("camIP").value.trim();
+    if(ip) document.getElementById("camURL").value = `http://${ip}`;
+});
+function saveCamera(){
+    const cam={
+        name: document.getElementById("camName").value,
+        ip: document.getElementById("camIP").value,
+        status: document.getElementById("camStatus").value,
+        url: document.getElementById("camURL").value,
+        lat: parseFloat(document.getElementById("camLat").value),
+        lng: parseFloat(document.getElementById("camLng").value)
+    };
+    if(!cam.name || !cam.ip){ alert("Nama dan IP wajib diisi!"); return; }
+    cctvs.push(cam);
+    saveStore();
+    updateCount();
+    loadMapMarkers();
+    alert("Kamera berhasil disimpan!");
+    document.getElementById("camName").value="";
+    document.getElementById("camIP").value="";
+    document.getElementById("camStatus").value="UP";
+    document.getElementById("camURL").value="";
+    document.getElementById("camLat").value="";
+    document.getElementById("camLng").value="";
+}
+
+// PAGE SWITCH
+function showHome(){ document.getElementById("homePage").style.display="block"; document.getElementById("mapPage").style.display="none"; document.getElementById("addDataPage").style.display="none"; setActiveMenu(0);}
+function showMap(){ document.getElementById("homePage").style.display="none"; document.getElementById("mapPage").style.display="block"; document.getElementById("addDataPage").style.display="none"; setActiveMenu(1); setTimeout(()=>{ map.invalidateSize(); },300);}
+function showAddData(){ document.getElementById("homePage").style.display="none"; document.getElementById("mapPage").style.display="none"; document.getElementById("addDataPage").style.display="block"; setActiveMenu(2);}
+function setActiveMenu(index){ document.querySelectorAll(".menu-item").forEach((el,i)=> i===index ? el.classList.add("active") : el.classList.remove("active"));}
+
+// TOGGLE SIDEBAR
+const toggleBtn = document.getElementById("toggleSidebar");
+const sidebar = document.getElementById("sidebar");
+const mapDiv = document.getElementById("map");
+toggleBtn.addEventListener("click", () => {
+    if(sidebar.style.display !== "none"){
+        sidebar.style.display = "none";
+        toggleBtn.textContent = "☰ →"; 
+        mapDiv.classList.add("fullscreen");
+    } else {
+        sidebar.style.display = "flex";
+        toggleBtn.textContent = "☰ ←"; 
+        mapDiv.classList.remove("fullscreen");
+    }
+    setTimeout(()=>{ map.invalidateSize(); }, 300);
+});
+
+// SEARCH MAP
+// SEARCH MAP (FIXED - WORKING WITH CLUSTER)
+document.getElementById("mapSearch").addEventListener("input", function(){
+    let keyword = this.value.toLowerCase();
+
+    if(!keyword){
+        loadMapMarkers();
+        map.setView([-8.7485,115.1675],16);
+        return;
+    }
+
+    let filtered = cctvs.filter(c =>
+        c.name.toLowerCase().includes(keyword) ||
+        c.ip.toLowerCase().includes(keyword)
+    );
+
+    loadMapMarkers(filtered);
+
+    // 🔴 INI KUNCI UTAMANYA
+    if(filtered.length > 0){
+        let group = new L.featureGroup(
+            markersCluster.getLayers()
+        );
+        map.fitBounds(group.getBounds(), { maxZoom: 40 });
+    }
+});
+
+// TABEL ADD DATA
+function renderTable(){
+    const tbody = document.querySelector("#cameraTable tbody");
+    tbody.innerHTML = "";
+    cctvs.forEach((cam,index)=>{
+        let tr = document.createElement("tr");
+        tr.innerHTML = `<td>${cam.name}</td>
+        <td>${cam.ip}</td>
+        <td>${cam.status}</td>
+        <td><a href="${cam.url}" target="_blank" style="color:${cam.status==='UP'?'green':'red'};">${cam.url}</a></td>
+        <td>${cam.lat}</td>
+        <td>${cam.lng}</td>
+        <td>
+            <button class="actionBtn editBtn" onclick="editCamera(${index})">Edit</button>
+            <button class="actionBtn deleteBtn" onclick="deleteCamera(${index})">Hapus</button>
+        </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// EDIT & DELETE WITH PASSWORD
+function editCamera(index){
+    let pwd = prompt("Masukkan password untuk edit:");
+    if(pwd !== "admin") return alert("Password salah!");
+    const cam = cctvs[index];
+    document.getElementById("camName").value = cam.name;
+    document.getElementById("camIP").value = cam.ip;
+    document.getElementById("camStatus").value = cam.status;
+    document.getElementById("camURL").value = cam.url;
+    document.getElementById("camLat").value = cam.lat;
+    document.getElementById("camLng").value = cam.lng;
+    cctvs.splice(index,1);
+    saveStore();
+    loadMapMarkers();
+}
+
+function deleteCamera(index){
+    let pwd = prompt("Masukkan password untuk hapus:");
+    if(pwd !== "admin") return alert("Password salah!");
+    if(confirm("Yakin ingin menghapus kamera ini?")){
+        cctvs.splice(index,1);
+        saveStore();
+        updateCount();
+        loadMapMarkers();
+    }
+}
+
+showHome();
+loadMapMarkers();
+</script>
+</body>
+</html>
